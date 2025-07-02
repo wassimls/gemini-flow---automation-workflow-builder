@@ -1,0 +1,6 @@
+{
+  "name": "Gemini Flow - Automation Workflow Builder",
+  "description": "A visual workflow automation tool, inspired by n8n, that allows users to create, connect, and execute nodes. Make requests to any API, including the Gemini API, to build powerful, custom automated workflows.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
