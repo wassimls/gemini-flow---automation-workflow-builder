@@ -7,8 +7,8 @@ import { BranchIcon } from './icons';
 
 // Copied from BaseNode.tsx for consistency
 const statusClasses: Record<ExecutionStatus, string> = {
-  idle: 'border-slate-500',
-  running: 'border-blue-500 ring-4 ring-blue-500/30',
+  idle: 'border-neutral-600',
+  running: 'border-green-500 ring-4 ring-green-500/30',
   success: 'border-green-500',
   error: 'border-red-500',
 };
@@ -19,27 +19,27 @@ const IfNode: React.FC<NodeProps<NodeData>> = ({ data }) => {
   const hasOutput = data.output !== undefined && data.output !== null;
 
   return (
-    <div className={`bg-slate-800 w-64 rounded-lg border-2 shadow-xl ${statusClasses[data.status]}`}>
+    <div className={`bg-neutral-800 w-64 rounded-lg border-2 shadow-xl ${statusClasses[data.status]}`}>
       {/* Target handle */}
-      <Handle type="target" position={Position.Left} className="!bg-slate-400" />
+      <Handle type="target" position={Position.Left} className="!bg-neutral-500" />
       
       {/* Header */}
-      <div className="p-3 border-b border-slate-700 flex items-center gap-3">
-        <div className="text-slate-300"><BranchIcon /></div>
-        <div className="font-bold text-slate-200">{data.label}</div>
+      <div className="p-3 border-b border-neutral-700 flex items-center gap-3">
+        <div className="text-neutral-300"><BranchIcon /></div>
+        <div className="font-bold text-neutral-200">{data.label}</div>
       </div>
       
       {/* Content wrapper */}
-      <div className="p-3 text-slate-300 text-sm space-y-2">
-        <div className="text-center text-xs p-1 rounded-md bg-slate-700/50 font-mono">
-            {config.value1 || <span className="italic text-slate-500">value1</span>}{' '}
-            <span className="font-bold text-indigo-400">{config.operator || 'OP'}</span>{' '}
-            {config.value2 || <span className="italic text-slate-500">value2</span>}
+      <div className="p-3 text-neutral-300 text-sm space-y-2">
+        <div className="text-center text-xs p-1 rounded-md bg-neutral-700/50 font-mono">
+            {config.value1 || <span className="italic text-neutral-500">value1</span>}{' '}
+            <span className="font-bold text-green-400">{config.operator || 'OP'}</span>{' '}
+            {config.value2 || <span className="italic text-neutral-500">value2</span>}
         </div>
 
         {/* Status/Error/Output rendering */}
         {data.status === 'error' && data.error && (
-            <div className="text-red-400 bg-red-900/50 p-2 rounded-md break-words">
+            <div className="text-red-300 bg-red-900/50 p-2 rounded-md break-words">
                 <p className="font-bold">Error:</p>
                 <p>{data.error}</p>
             </div>

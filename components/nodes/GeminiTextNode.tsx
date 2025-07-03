@@ -12,9 +12,9 @@ const GeminiTextNode: React.FC<NodeProps<NodeData>> = ({ data }) => {
   return (
     <BaseNode data={data} icon={<SparklesIcon />}>
       <div className="space-y-1">
-        <p className="font-semibold text-slate-400">Prompt Template:</p>
-        <p className="text-slate-200 bg-slate-700/50 p-2 rounded-md break-words text-xs font-mono max-h-28 overflow-y-auto">
-          {config.promptTemplate || <span className="italic text-slate-500">Not configured</span>}
+        <p className="font-semibold text-neutral-400">Prompt Template:</p>
+        <p className="text-neutral-200 bg-neutral-700/50 p-2 rounded-md break-words text-xs font-mono max-h-28 overflow-y-auto">
+          {config.promptTemplate || <span className="italic text-neutral-500">Not configured</span>}
         </p>
       </div>
     </BaseNode>

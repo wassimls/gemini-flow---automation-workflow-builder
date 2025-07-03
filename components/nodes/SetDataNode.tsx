@@ -11,9 +11,9 @@ const SetDataNode: React.FC<NodeProps<NodeData>> = ({ data }) => {
 
   return (
     <BaseNode data={data} icon={<EditIcon />}>
-      <p className="font-semibold text-slate-400">JSON Data:</p>
-      <pre className="text-xs p-2 rounded-md bg-slate-700/50 font-mono whitespace-pre-wrap break-all">
-        {config.data || <span className="italic text-slate-500">Not configured</span>}
+      <p className="font-semibold text-neutral-400">JSON Data:</p>
+      <pre className="text-xs p-2 rounded-md bg-neutral-700/50 font-mono whitespace-pre-wrap break-all">
+        {config.data || <span className="italic text-neutral-500">Not configured</span>}
       </pre>
     </BaseNode>
   );

@@ -44,7 +44,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   }), []);
 
   return (
-    <div className="flex-grow h-full bg-gray-900">
+    <div className="flex-grow h-full bg-neutral-950">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -54,20 +54,20 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        className="bg-gray-900"
+        className="bg-neutral-950"
       >
         <Controls />
         <MiniMap nodeStrokeColor={(n) => {
-            if (n.type === 'input') return '#0041d0';
-            if (n.type === 'output') return '#ff0072';
-            if (n.type === 'default') return '#1a192b';
-            return '#eee';
+            if (n.data?.status === 'success') return '#22c55e';
+            if (n.data?.status === 'running') return '#3b82f6';
+            if (n.data?.status === 'error') return '#ef4444';
+            return '#404040';
         }} nodeColor={(n) => {
             if (n.style?.background) return n.style.background as string;
-            return '#333'
+            return '#262626'
         }}
         />
-        <Background gap={16} color="#4A5568" />
+        <Background gap={16} color="#262626" />
       </ReactFlow>
     </div>
   );

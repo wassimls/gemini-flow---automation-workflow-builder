@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   applyNodeChanges,
@@ -20,9 +21,10 @@ import { generateText } from './services/geminiService';
 import { runAgent } from './services/aiAgentService';
 import { sendMessageToAI, AIResponse } from './services/aiAssistantService';
 import ChatPanel, { Message } from './components/ChatPanel';
-import { CloudIcon, TerminalIcon, PlayIcon, BranchIcon, UploadIcon, DownloadIcon, ChatBubbleIcon, EditIcon, PlusIcon, SparklesIcon, AgentIcon, CogIcon } from './components/nodes/icons';
+import { UploadIcon, DownloadIcon, ChatBubbleIcon, CogIcon, PlayIcon } from './components/nodes/icons';
 import { isValidWorkflow } from './services/workflowGeneratorService';
 import { resolveExpressions } from './services/expressionService';
+import NodeToolbar from './components/NodeToolbar';
 
 const initialNodes: AppNode[] = [
   {
@@ -78,7 +80,6 @@ const App: React.FC = () => {
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isAddNodeMenuOpen, setIsAddNodeMenuOpen] = useState(false);
 
   const [isChatPanelVisible, setIsChatPanelVisible] = useState(false);
   const [isSettingsPanelVisible, setIsSettingsPanelVisible] = useState(false);
@@ -91,6 +92,10 @@ const App: React.FC = () => {
   // State for API Keys
   const [openRouterApiKey, setOpenRouterApiKey] = useState<string>(() => localStorage.getItem('openRouterApiKey') || '');
   const [selectedModel, setSelectedModel] = useState<string>(() => localStorage.getItem('openRouterModel') || 'google/gemma-2-9b-it');
+
+  // Ref to hold the latest nodes array to avoid stale closures in callbacks.
+  const nodesRef = useRef<AppNode[]>([]);
+  nodesRef.current = nodes;
 
   // Autosave to localStorage
   useEffect(() => { localStorage.setItem('gemini-flow-nodes', JSON.stringify(nodes)); }, [nodes]);
@@ -132,7 +137,15 @@ const App: React.FC = () => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, config: newConfig } };
+          const updatedNode = { ...node, data: { ...node.data, config: newConfig } };
+          // Also update the selectedNode state if it's the one being configured
+          setSelectedNode(currentSelectedNode => {
+            if (currentSelectedNode?.id === nodeId) {
+              return updatedNode;
+            }
+            return currentSelectedNode;
+          });
+          return updatedNode;
         }
         return node;
       })
@@ -141,22 +154,26 @@ const App: React.FC = () => {
   
   const onUpdateNodeLabel = useCallback((nodeId: string, newLabel: string) => {
     setNodes((nds) =>
-        nds.map((node) => {
+      nds.map((node) => {
         if (node.id === nodeId) {
-            if (node.data.nodeType === NodeType.START) return node;
-            const updatedNode = { ...node, data: { ...node.data, label: newLabel } };
-            if (selectedNode?.id === nodeId) {
-                setSelectedNode(updatedNode);
+          if (node.data.nodeType === NodeType.START) return node;
+          const updatedNode = { ...node, data: { ...node.data, label: newLabel } };
+          setSelectedNode(currentSelectedNode => {
+            if (currentSelectedNode?.id === nodeId) {
+                return updatedNode;
             }
-            return updatedNode;
+            return currentSelectedNode;
+          });
+          return updatedNode;
         }
         return node;
-        })
+      })
     );
-  }, [setNodes, selectedNode]);
+  }, [setNodes]);
 
   const deleteNode = useCallback((nodeId: string) => {
-    const nodeToDelete = nodes.find(n => n.id === nodeId);
+    // Access the latest nodes via the ref to avoid stale closure
+    const nodeToDelete = nodesRef.current?.find(n => n.id === nodeId);
     if (nodeToDelete && nodeToDelete.data.nodeType === NodeType.START) {
         alert("The Start node cannot be deleted.");
         return;
@@ -166,9 +183,9 @@ const App: React.FC = () => {
     setEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId));
     setSelectedNode(null);
     setIsPanelVisible(false);
-  }, [nodes, setNodes, setEdges]);
+  }, [setNodes, setEdges]);
 
-  const addNode = (type: NodeType) => {
+  const addNode = useCallback((type: NodeType) => {
     const id = `${+new Date()}`;
     let newNode: AppNode;
     const baseNode = {
@@ -210,7 +227,7 @@ const App: React.FC = () => {
         return;
     }
     setNodes((nds) => nds.concat(newNode));
-  };
+  }, [setNodes]);
   
   const resetWorkflowStatus = () => {
     setNodes(nds => nds.map(n => ({...n, data: {...n.data, status: 'idle', output: undefined, error: undefined}})));
@@ -366,7 +383,7 @@ const App: React.FC = () => {
 
             setEdges(currentEdges => currentEdges.map(e => {
                 if (nextEdges.some(ne => ne.id === e.id)) {
-                    return { ...e, animated: true, style: { stroke: '#3b82f6', strokeWidth: 2 } }; // blue-500
+                    return { ...e, animated: true, style: { stroke: '#22c55e', strokeWidth: 2 } }; // green-500
                 }
                 return e;
             }));
@@ -483,8 +500,27 @@ const App: React.FC = () => {
               const text = e.target?.result as string;
               const workflow = JSON.parse(text);
 
+              // Sanitization and backward-compatibility block
               if (workflow && Array.isArray(workflow.nodes)) {
                   workflow.nodes.forEach((node: any) => {
+                      // Backward compatibility: Convert config data from object to JSON string if needed
+                      if (node.data?.config) {
+                          const config = node.data.config;
+                          if (node.type === NodeType.START && typeof config.outputData === 'object') {
+                              config.outputData = JSON.stringify(config.outputData, null, 2);
+                          } else if (node.type === NodeType.SET_DATA && typeof config.data === 'object') {
+                              config.data = JSON.stringify(config.data, null, 2);
+                          } else if (node.type === NodeType.API_REQUEST) {
+                              if (typeof config.headers === 'object') {
+                                  config.headers = JSON.stringify(config.headers, null, 2);
+                              }
+                              if (typeof config.bodyTemplate === 'object') {
+                                  config.bodyTemplate = JSON.stringify(config.bodyTemplate, null, 2);
+                              }
+                          }
+                      }
+                      
+                      // General sanitation
                       if (node.position) {
                           node.position.x = Number(node.position.x) || 0;
                           node.position.y = Number(node.position.y) || 0;
@@ -533,99 +569,90 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="w-screen h-screen flex flex-col bg-gray-900 text-white">
-      <header className="bg-gray-800 border-b border-gray-700 p-2 flex items-center justify-between z-10">
-        <h1 className="text-xl font-bold text-indigo-400 pl-4">Gemini Flow</h1>
-        <div className="flex items-center space-x-4">
-            <button onClick={() => { setIsSettingsPanelVisible(p => !p); setIsChatPanelVisible(false); }} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-full transition-colors duration-200" title="Settings">
-                <CogIcon />
-            </button>
-            <button onClick={() => { setIsChatPanelVisible(p => !p); setIsSettingsPanelVisible(false); }} className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded transition-colors duration-200" title="AI Assistant">
-                <ChatBubbleIcon />
-                <span>AI Assistant</span>
-            </button>
-            <div className="w-px h-6 bg-gray-600"></div>
-            <div className="flex items-center space-x-2">
-                 <button onClick={handleImportClick} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded transition-colors duration-200" title="Import Workflow (JSON)">
-                    <UploadIcon />
-                    <span>Import</span>
+    <div className="w-screen h-screen flex bg-neutral-950 text-white font-sans">
+      <NodeToolbar onAddNode={addNode} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+          <header className="bg-neutral-900 border-b border-neutral-800 p-2 flex items-center justify-between z-10 flex-shrink-0">
+            <h1 className="text-xl font-bold text-green-400 pl-4">Gemini Flow</h1>
+            <div className="flex items-center space-x-4">
+                <button onClick={() => { setIsSettingsPanelVisible(p => !p); setIsChatPanelVisible(false); }} className="p-2 bg-neutral-800 hover:bg-neutral-700 rounded-full transition-colors duration-200" title="Settings">
+                    <CogIcon />
                 </button>
-                <button onClick={handleExportWorkflow} className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded transition-colors duration-200" title="Export Workflow (JSON)">
-                    <DownloadIcon />
-                    <span>Export</span>
+                <button onClick={() => { setIsChatPanelVisible(p => !p); setIsSettingsPanelVisible(false); }} className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 rounded-md transition-colors duration-200" title="AI Assistant">
+                    <ChatBubbleIcon />
+                    <span>AI Assistant</span>
+                </button>
+                <div className="w-px h-6 bg-neutral-700"></div>
+                <div className="flex items-center space-x-2">
+                    <button onClick={handleImportClick} className="flex items-center space-x-2 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2 px-3 rounded-md transition-colors duration-200" title="Import Workflow (JSON)">
+                        <UploadIcon />
+                        <span>Import</span>
+                    </button>
+                    <button onClick={handleExportWorkflow} className="flex items-center space-x-2 bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2 px-3 rounded-md transition-colors duration-200" title="Export Workflow (JSON)">
+                        <DownloadIcon />
+                        <span>Export</span>
+                    </button>
+                </div>
+                <div className="w-px h-6 bg-neutral-700"></div>
+                <button
+                  onClick={runWorkflow}
+                  disabled={isExecuting}
+                  className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 disabled:bg-green-900 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-md transition-colors duration-200 mr-4"
+                >
+                  {isExecuting ? (
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                  ) : <PlayIcon />}
+                  <span>{isExecuting ? 'Executing...' : 'Run Workflow'}</span>
                 </button>
             </div>
-            <div className="w-px h-6 bg-gray-600"></div>
-            <div className="relative">
-                <button onClick={() => setIsAddNodeMenuOpen(prev => !prev)} className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded transition-colors duration-200">
-                    <PlusIcon />
-                    <span>Add Node</span>
-                </button>
-                {isAddNodeMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-gray-700 rounded-md shadow-lg z-20 text-left">
-                        <a href="#" onClick={(e) => { e.preventDefault(); addNode(NodeType.AI_AGENT); setIsAddNodeMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-gray-600"><AgentIcon /> AI Agent</a>
-                        <a href="#" onClick={(e) => { e.preventDefault(); addNode(NodeType.GEMINI_TEXT); setIsAddNodeMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-gray-600"><SparklesIcon /> Gemini Text</a>
-                        <a href="#" onClick={(e) => { e.preventDefault(); addNode(NodeType.SET_DATA); setIsAddNodeMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-gray-600"><EditIcon /> Set Data</a>
-                        <a href="#" onClick={(e) => { e.preventDefault(); addNode(NodeType.API_REQUEST); setIsAddNodeMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-gray-600"><CloudIcon /> API Request</a>
-                        <a href="#" onClick={(e) => { e.preventDefault(); addNode(NodeType.IF); setIsAddNodeMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-gray-600"><BranchIcon /> IF Condition</a>
-                        <a href="#" onClick={(e) => { e.preventDefault(); addNode(NodeType.LOG_OUTPUT); setIsAddNodeMenuOpen(false); }} className="flex items-center gap-3 px-4 py-2 text-sm text-white hover:bg-gray-600"><TerminalIcon /> Log Output</a>
-                    </div>
-                )}
-            </div>
-            <button
-              onClick={runWorkflow}
-              disabled={isExecuting}
-              className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-900 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded transition-colors duration-200 mr-4"
-            >
-              {isExecuting ? (
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-              ) : <PlayIcon />}
-              <span>{isExecuting ? 'Executing...' : 'Run Workflow'}</span>
-            </button>
-        </div>
-      </header>
-      <main className="flex flex-1 overflow-hidden relative">
-        <WorkflowCanvas
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeClick={onNodeClick}
-        />
-        {isPanelVisible && (
-            <ConfigurationPanel 
-                selectedNode={selectedNode}
-                onUpdateNodeConfig={onUpdateNodeConfig}
-                onUpdateNodeLabel={onUpdateNodeLabel}
-                onDeleteNode={deleteNode}
-                onClose={() => {
-                    setIsPanelVisible(false);
-                    setSelectedNode(null);
-                }}
+          </header>
+          <main className="flex flex-1 overflow-hidden relative">
+            <WorkflowCanvas
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
             />
-        )}
-        {isChatPanelVisible && (
-            <ChatPanel
-                messages={messages}
-                onSendMessage={handleSendMessage}
-                onClose={() => setIsChatPanelVisible(false)}
-                isLoading={isGenerating}
-                apiKey={openRouterApiKey}
-                onApiKeyChange={setOpenRouterApiKey}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-            />
-        )}
-        {isSettingsPanelVisible && (
-            <SettingsPanel
-                onClose={() => setIsSettingsPanelVisible(false)}
-            />
-        )}
-      </main>
+            {isPanelVisible && (
+                <div className="absolute right-0 top-0 h-full z-20 shadow-2xl">
+                    <ConfigurationPanel 
+                        selectedNode={selectedNode}
+                        nodes={nodes}
+                        edges={edges}
+                        onUpdateNodeConfig={onUpdateNodeConfig}
+                        onUpdateNodeLabel={onUpdateNodeLabel}
+                        onDeleteNode={deleteNode}
+                        onClose={() => {
+                            setIsPanelVisible(false);
+                            setSelectedNode(null);
+                        }}
+                    />
+                </div>
+            )}
+            {isChatPanelVisible && (
+                <ChatPanel
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    onClose={() => setIsChatPanelVisible(false)}
+                    isLoading={isGenerating}
+                    apiKey={openRouterApiKey}
+                    onApiKeyChange={setOpenRouterApiKey}
+                    selectedModel={selectedModel}
+                    onModelChange={setSelectedModel}
+                />
+            )}
+            {isSettingsPanelVisible && (
+                <SettingsPanel
+                    onClose={() => setIsSettingsPanelVisible(false)}
+                />
+            )}
+          </main>
+      </div>
       <input
         type="file"
         ref={fileInputRef}

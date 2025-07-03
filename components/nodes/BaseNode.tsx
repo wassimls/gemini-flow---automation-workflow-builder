@@ -10,8 +10,8 @@ interface BaseNodeProps {
 }
 
 const statusClasses: Record<ExecutionStatus, string> = {
-  idle: 'border-slate-500',
-  running: 'border-blue-500 ring-4 ring-blue-500 pulse-ring',
+  idle: 'border-neutral-600',
+  running: 'border-green-500 ring-4 ring-green-500 pulse-ring',
   success: 'border-green-500',
   error: 'border-red-500',
 };
@@ -21,18 +21,18 @@ const BaseNode: React.FC<BaseNodeProps> = ({ data, icon, children }) => {
   const hasOutput = data.output !== undefined && data.output !== null;
 
   return (
-    <div className={`bg-slate-800 w-64 rounded-lg border-2 shadow-xl ${statusClasses[data.status]}`}>
-      {!isStartNode && <Handle type="target" position={Position.Left} className="!bg-slate-400" />}
+    <div className={`bg-neutral-800 w-64 rounded-lg border-2 shadow-xl ${statusClasses[data.status]}`}>
+      {!isStartNode && <Handle type="target" position={Position.Left} className="!bg-neutral-500" />}
       
-      <div className="p-3 border-b border-slate-700 flex items-center gap-3">
-        <div className="text-slate-300">{icon}</div>
-        <div className="font-bold text-slate-200">{data.label}</div>
+      <div className="p-3 flex items-center gap-3">
+        <div className="text-neutral-300">{icon}</div>
+        <div className="font-bold text-neutral-200">{data.label}</div>
       </div>
       
-      <div className="p-3 text-slate-300 text-sm space-y-2">
+      <div className="px-3 pb-3 text-neutral-300 text-sm space-y-2">
         {children}
         {data.status === 'error' && data.error && (
-            <div className="text-red-400 bg-red-900/50 p-2 rounded-md break-words">
+            <div className="text-red-300 bg-red-900/50 p-2 rounded-md break-words">
                 <p className="font-bold">Error:</p>
                 <p>{data.error}</p>
             </div>
@@ -49,7 +49,7 @@ const BaseNode: React.FC<BaseNodeProps> = ({ data, icon, children }) => {
         )}
       </div>
 
-      <Handle type="source" position={Position.Right} className="!bg-slate-400" />
+      <Handle type="source" position={Position.Right} className="!bg-neutral-500" />
     </div>
   );
 };

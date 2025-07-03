@@ -12,9 +12,9 @@ const AIAgentNode: React.FC<NodeProps<NodeData>> = ({ data }) => {
   return (
     <BaseNode data={data} icon={<AgentIcon />}>
       <div className="space-y-1">
-        <p className="font-semibold text-slate-400">Agent Goal:</p>
-        <p className="text-slate-200 bg-slate-700/50 p-2 rounded-md break-words text-xs font-mono max-h-28 overflow-y-auto">
-          {config.goalTemplate || <span className="italic text-slate-500">Not configured</span>}
+        <p className="font-semibold text-neutral-400">Agent Goal:</p>
+        <p className="text-neutral-200 bg-neutral-700/50 p-2 rounded-md break-words text-xs font-mono max-h-28 overflow-y-auto">
+          {config.goalTemplate || <span className="italic text-neutral-500">Not configured</span>}
         </p>
       </div>
     </BaseNode>
